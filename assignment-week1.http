@@ -1,0 +1,64 @@
+@baseUrl = http://localhost:3000
+
+### Books - create a book (run this first; it creates id 1)
+POST {{baseUrl}}/books
+Content-Type: application/json
+
+{
+  "title": "Clean Code",
+  "author": "Robert C. Martin"
+}
+
+### Books - get all
+GET {{baseUrl}}/books
+
+### Books - get one
+GET {{baseUrl}}/books/1
+
+### Books - update
+PATCH {{baseUrl}}/books/1
+Content-Type: application/json
+
+{
+  "title": "Clean Code (Edisi Revisi)"
+}
+
+### Books - borrow book id 1
+PATCH {{baseUrl}}/books/1/borrow
+
+### Books - borrow again (expected 400: Buku sedang dipinjam!)
+PATCH {{baseUrl}}/books/1/borrow
+
+### Books - return book id 1
+PATCH {{baseUrl}}/books/1/return
+
+### Books - delete (run after all book scenarios)
+DELETE {{baseUrl}}/books/1
+
+### Members - create a member (run this first; it creates id 1)
+POST {{baseUrl}}/members
+Content-Type: application/json
+
+{
+  "fullName": "Budi Santoso",
+  "email": "budi@example.com",
+  "phoneNumber": "081234567890"
+}
+
+### Members - get all
+GET {{baseUrl}}/members
+
+### Members - get one
+GET {{baseUrl}}/members/1
+
+### Members - update
+PATCH {{baseUrl}}/members/1
+Content-Type: application/json
+
+{
+  "phoneNumber": "089876543210",
+  "isActive": false
+}
+
+### Members - delete
+DELETE {{baseUrl}}/members/1
