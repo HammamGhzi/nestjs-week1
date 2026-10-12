@@ -8,6 +8,7 @@ import {
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import type { Response } from 'express';
+import { TransformResponseInterceptor } from './interceptors/transform-response/transform-response.interceptor.js';
 
 class ValidationException extends HttpException {
   constructor(readonly validationMessage: string) {
@@ -54,6 +55,7 @@ async function bootstrap() {
       },
     }),
   );
+  app.useGlobalInterceptors(new TransformResponseInterceptor());
   
   await app.listen(process.env.PORT ?? 3000);
 }
