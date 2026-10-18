@@ -1,43 +1,46 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Member, PublicMember } from './entities/member.entity.js';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Member } from './entities/member.entity.js';
 import { CreateMemberDto } from './dto/create-members-dto.js';
 import { UpdateMemberDto } from './dto/update-members-dto.js';
 
 @Injectable()
 export class MembersService {
+  // wajib memakai new Member(...) agar decorator class-transformer aktif
   private readonly members: Member[] = [
-    { id: 1, name: 'John Doe', email: 'john.doe@example.com', phone: '1234567890', password: 'password123' },
-    { id: 2, name: 'Jane Smith', email: 'jane.smith@example.com', phone: '0987654321', password: 'password456' },
+    new Member({ id: 1, name: 'John Doe', email: 'john.doe@example.com', phone: '1234567890', password: 'password123' }),
+    new Member({ id: 2, name: 'Jane Smith', email: 'jane.smith@example.com', phone: '0987654321', password: 'password456' }),
   ];
 
-  private toPublicMember({ password: _password, ...member }: Member): PublicMember {
+  findAll(): Member[] {
+    return this.members;
+  }
+
+  findById(id: number): Member {
+    const member = this.members.find((item) => item.id === id);
+    if (!member) throw new NotFoundException(`Member with id ${id} not found`);
     return member;
   }
 
-  findAll(): PublicMember[] {
-    return this.members.map((member) => this.toPublicMember(member));
-  }
-
-  findById(id: number): PublicMember {
-    const member = this.members.find((item) => item.id === id);
-    if (!member) throw new NotFoundException(`Member with id ${id} not found`);
-    return this.toPublicMember(member);
-  }
-
-  create(input: CreateMemberDto): PublicMember {
-    const member: Member = {
+  create(input: CreateMemberDto): Member {
+    if (this.members.some((item) => item.email === input.email)) {
+      throw new ConflictException(`Alamat email ${input.email} sudah digunakan.`);
+    }
+    const member = new Member({
       id: this.members.length ? Math.max(...this.members.map((item) => item.id)) + 1 : 1,
       ...input,
-    };
+    });
     this.members.push(member);
-    return this.toPublicMember(member);
+    return member;
   }
 
-  update(id: number, input: UpdateMemberDto): PublicMember {
-    const member = this.members.find((item) => item.id === id);
-    if (!member) throw new NotFoundException(`Member with id ${id} not found`);
-    Object.assign(member, input);
-    return this.toPublicMember(member);
+  update(id: number, input: UpdateMemberDto): Member {
+    const member = this.findById(id);
+    // abaikan field undefined agar tidak menimpa data lama
+    Object.assign(
+      member,
+      Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)),
+    );
+    return member;
   }
 
   remove(id: number): boolean {

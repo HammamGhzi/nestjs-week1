@@ -1,11 +1,12 @@
 import {
   ArgumentsHost,
   Catch,
+  ClassSerializerInterceptor,
   ExceptionFilter,
   HttpException,
   ValidationPipe,
 } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import type { Response } from 'express';
 import { TransformResponseInterceptor } from './interceptors/transform-response/transform-response.interceptor.js';
@@ -55,8 +56,12 @@ async function bootstrap() {
       },
     }),
   );
-  app.useGlobalInterceptors(new TransformResponseInterceptor());
-  
+  // urutan: Transform (luar) -> ClassSerializer (dalam), agar @Exclude diproses sebelum dibungkus
+  app.useGlobalInterceptors(
+    new TransformResponseInterceptor(),
+    new ClassSerializerInterceptor(app.get(Reflector)),
+  );
+
   await app.listen(process.env.PORT ?? 3000);
 }
 await bootstrap();
