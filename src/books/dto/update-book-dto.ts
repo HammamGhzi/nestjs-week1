@@ -1,4 +1,5 @@
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateBookDto {
   @IsOptional()
@@ -18,8 +19,9 @@ export class UpdateBookDto {
 
   @IsOptional()
   @IsNotEmpty({ message: 'Penerbit tidak boleh kosong' })
-  @IsString({ message: 'Penerbit harus berupa teks' })
-  readonly publisher?: string;
+  @IsNumber({}, { message: 'Penerbit harus berupa angka' })
+  @Type(() => Number)
+  readonly publisher?: number;
 
   @IsOptional()
   @IsBoolean({ message: 'Status ketersediaan harus berupa true atau false' })
