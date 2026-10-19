@@ -1,4 +1,5 @@
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateBookDto {
   @IsNotEmpty({ message: 'Judul harus diisi' })
@@ -14,8 +15,9 @@ export class CreateBookDto {
   readonly isbn: string;
 
   @IsNotEmpty({ message: 'Publisher is required' })
-  @IsString({ message: 'Publisher must be a string' })
-  readonly publisher: string;
+  @IsNumber({}, { message: 'Publisher must be a number' })
+  @Type(() => Number)
+  readonly publisher: number;
 
   @IsOptional()
   @IsBoolean({ message: 'Availability must be a boolean' })
