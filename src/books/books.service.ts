@@ -1,64 +1,71 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { Book } from './entities/book.entity.js';
 import { CreateBookDto } from './dto/create-book-dto.js';
 import { UpdateBookDto } from './dto/update-book-dto.js';
 
 @Injectable()
 export class BooksService {
-  // wajib memakai new Book(...) agar konsisten sebagai instance class
-  private readonly books: Book[] = [
-    new Book({ id: 1, title: 'Buku 1', author: 'Penulis 1', isbn: '1234567890', publisher: 'Penerbit 1', isAvailable: true }),
-    new Book({ id: 2, title: 'Buku 2', author: 'Penulis 2', isbn: '0987654321', publisher: 'Penerbit 2', isAvailable: false }),
-  ];
+  constructor(
+    @InjectRepository(Book)
+    private readonly booksRepository: Repository<Book>,
+  ) {}
 
-  // menampilkan semua data buku
-  findAll(): Book[] {
-    return this.books;
+  findAll(): Promise<Book[]> {
+    return this.booksRepository.find({ relations: { category: true, publisher: true } });
   }
 
-  // menampilkan data buku berdasarkan id
-  findById(id: number): Book {
-    const book = this.books.find((item) => item.id === id);
-    if (!book) throw new NotFoundException(`Book with id ${id} not found`);
-    return book;
-  }
-
-  // menyimpan data buku
-  create(input: CreateBookDto): Book {
-    if (this.books.some((item) => item.isbn === input.isbn)) {
-      throw new ConflictException(`Buku dengan ISBN ${input.isbn} sudah terdaftar.`);
-    }
-    const book = new Book({
-      id: this.books.length ? Math.max(...this.books.map((item) => item.id)) + 1 : 1,
-      title: input.title,
-      author: input.author,
-      isbn: input.isbn,
-      publisher: input.publisher,
-      isAvailable: input.isAvailable ?? true,
+  async findById(id: string): Promise<Book> {
+    const book = await this.booksRepository.findOne({
+      where: { id },
+      relations: { category: true, publisher: true, bookAuthors: { author: true } },
     });
-    this.books.push(book);
+    if (!book) throw new NotFoundException(`Buku dengan id ${id} tidak ditemukan`);
     return book;
   }
 
-  // mengupdate data buku berdasarkan id
-  update(id: number, input: UpdateBookDto): Book {
-    const book = this.findById(id);
-    if (input.isbn && this.books.some((item) => item.isbn === input.isbn && item.id !== id)) {
-      throw new ConflictException(`Buku dengan ISBN ${input.isbn} sudah terdaftar.`);
+  async create(input: CreateBookDto): Promise<Book> {
+    const existing = await this.booksRepository.findOne({
+      where: { isbn: input.isbn },
+    });
+    if (existing) throw new ConflictException(`ISBN ${input.isbn} sudah terdaftar`);
+
+    const { categoryId, publisherId, ...rest } = input;
+    const book = this.booksRepository.create({
+      ...rest,
+      category: categoryId ? { id: categoryId } : null,
+      publisher: publisherId ? { id: publisherId } : null,
+    });
+    return this.booksRepository.save(book);
+  }
+
+  async update(id: string, input: UpdateBookDto): Promise<Book> {
+    const book = await this.findById(id);
+
+    if (input.isbn && input.isbn !== book.isbn) {
+      const existing = await this.booksRepository.findOne({
+        where: { isbn: input.isbn },
+      });
+      if (existing) throw new ConflictException(`ISBN ${input.isbn} sudah digunakan`);
     }
-    // abaikan field undefined agar tidak menimpa data lama
-    Object.assign(
-      book,
-      Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)),
-    );
-    return book;
+
+    const { categoryId, publisherId, ...rest } = input;
+    Object.assign(book, rest);
+
+    if (categoryId !== undefined) {
+      book.category = categoryId ? { id: categoryId } as any : null;
+    }
+    if (publisherId !== undefined) {
+      book.publisher = publisherId ? { id: publisherId } as any : null;
+    }
+
+    return this.booksRepository.save(book);
   }
 
-  // menghapus data buku berdasarkan id
-  remove(id: number): boolean {
-    const index = this.books.findIndex((item) => item.id === id);
-    if (index === -1) throw new NotFoundException(`Book with id ${id} not found`);
-    this.books.splice(index, 1);
+  async remove(id: string): Promise<boolean> {
+    const book = await this.findById(id);
+    await this.booksRepository.softRemove(book);
     return true;
   }
 }
