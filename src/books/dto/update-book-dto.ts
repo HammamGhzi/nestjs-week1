@@ -1,29 +1,50 @@
-import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsString,
+  IsUUID,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class UpdateBookDto {
   @IsOptional()
-  @IsNotEmpty({ message: 'Judul buku tidak boleh kosong' })
-  @IsString({ message: 'Judul buku harus berupa teks' })
+  @IsString()
+  @MaxLength(30)
   readonly title?: string;
 
   @IsOptional()
-  @IsNotEmpty({ message: 'Nama penulis tidak boleh kosong' })
-  @IsString({ message: 'Nama penulis harus berupa teks' })
-  readonly author?: string;
-
-  @IsOptional()
-  @IsNotEmpty({ message: 'ISBN tidak boleh kosong' })
-  @IsString({ message: 'ISBN harus berupa teks' })
+  @IsString()
+  @MaxLength(45)
   readonly isbn?: string;
 
   @IsOptional()
-  @IsNotEmpty({ message: 'Penerbit tidak boleh kosong' })
-  @IsNumber({}, { message: 'Penerbit harus berupa angka' })
-  @Type(() => Number)
-  readonly publisher?: number;
+  @IsInt()
+  @Min(0)
+  readonly publishedYear?: number;
 
   @IsOptional()
-  @IsBoolean({ message: 'Status ketersediaan harus berupa true atau false' })
+  @IsBoolean()
   readonly isAvailable?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  readonly price?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  readonly stock?: number;
+
+  @IsOptional()
+  @IsUUID()
+  readonly categoryId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  readonly publisherId?: string;
 }

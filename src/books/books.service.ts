@@ -1,50 +1,71 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { Book } from './entities/book.entity.js';
 import { CreateBookDto } from './dto/create-book-dto.js';
 import { UpdateBookDto } from './dto/update-book-dto.js';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 
 @Injectable()
 export class BooksService {
   constructor(
     @InjectRepository(Book)
-    private readonly bookRepository: Repository<Book>,
+    private readonly booksRepository: Repository<Book>,
   ) {}
 
-  // menampilkan semua data buku
-  async findAll(): Promise<Book[]> {
-    return await this.bookRepository.find({
-      order: { createdAt: 'DESC' },
-    });
+  findAll(): Promise<Book[]> {
+    return this.booksRepository.find({ relations: { category: true, publisher: true } });
   }
 
-  // menampilkan data buku berdasarkan id
   async findById(id: string): Promise<Book> {
-    const book = await this.bookRepository.findOneBy({ id });
-    if (!book) {
-      throw new NotFoundException(`Buku dengan ID ${id} tidak ditemukan`);
-    }
+    const book = await this.booksRepository.findOne({
+      where: { id },
+      relations: { category: true, publisher: true, bookAuthors: { author: true } },
+    });
+    if (!book) throw new NotFoundException(`Buku dengan id ${id} tidak ditemukan`);
     return book;
   }
 
-  // menyimpan data buku
   async create(input: CreateBookDto): Promise<Book> {
-    const newBook = this.bookRepository.create(input);
-    return await this.bookRepository.save(newBook);
+    const existing = await this.booksRepository.findOne({
+      where: { isbn: input.isbn },
+    });
+    if (existing) throw new ConflictException(`ISBN ${input.isbn} sudah terdaftar`);
+
+    const { categoryId, publisherId, ...rest } = input;
+    const book = this.booksRepository.create({
+      ...rest,
+      category: categoryId ? { id: categoryId } : null,
+      publisher: publisherId ? { id: publisherId } : null,
+    });
+    return this.booksRepository.save(book);
   }
 
-  // mengupdate data buku berdasarkan id
   async update(id: string, input: UpdateBookDto): Promise<Book> {
     const book = await this.findById(id);
-    const updatedBook = this.bookRepository.merge(book, input);
-    return await this.bookRepository.save(updatedBook);
+
+    if (input.isbn && input.isbn !== book.isbn) {
+      const existing = await this.booksRepository.findOne({
+        where: { isbn: input.isbn },
+      });
+      if (existing) throw new ConflictException(`ISBN ${input.isbn} sudah digunakan`);
+    }
+
+    const { categoryId, publisherId, ...rest } = input;
+    Object.assign(book, rest);
+
+    if (categoryId !== undefined) {
+      book.category = categoryId ? { id: categoryId } as any : null;
+    }
+    if (publisherId !== undefined) {
+      book.publisher = publisherId ? { id: publisherId } as any : null;
+    }
+
+    return this.booksRepository.save(book);
   }
 
-  // menghapus data buku berdasarkan id
-  async remove(id: string): Promise<{ message: string; deleteId: string }> {
+  async remove(id: string): Promise<boolean> {
     const book = await this.findById(id);
-    await this.bookRepository.remove(book);
-    return { message: `Buku dengan ID ${id} berhasil dihapus`, deleteId: id };
+    await this.booksRepository.softRemove(book);
+    return true;
   }
 }
